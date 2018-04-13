@@ -4,8 +4,10 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import NoSuchElementException
+from selenium.common.exceptions import WebDriverException
 import time
 import sys
+import csv
 
 csv_name = sys.argv[1]
 
@@ -37,13 +39,16 @@ driver.find_element(By.XPATH, submit_xpath).click()
 page_num = 1
 
 row_xpath = '//*[@id="contest-app"]/div/div/div/div/div[2]/div[2]/div[2]/div[*]/div'
-while True:
-    if page_num % 100 == 0:
-        print(page_num)
-    target_url = url + str(page_num)
+with open(csv_name + '.csv', 'w') as csvfile:
+    csvwriter = csv.writer(csvfile, delimiter=',',
+                        quotechar='|', quoting=csv.QUOTE_MINIMAL)
+    csvwriter.writerow(['rank', 'username', 'nationality'])
     driver.get(url)
-
+    page_num = 1
     while(True):
+        if page_num % 101 == 0:
+            print(page_num)
+        page_num += 1
         WebDriverWait(driver, 10).until(
             EC.presence_of_element_located((By.XPATH, row_xpath))
         )
@@ -55,11 +60,13 @@ while True:
                 nationality = i.find_element(By.CSS_SELECTOR, "div.nationality.col.pull-right > span").get_attribute('data-original-title')
             except NoSuchElementException as e:
                 nationality = "No Nationality"
-            db.insert({'ranking':ranking,'username':username,'nationality':nationality,'timestamp':time.time()})
-        driver.find_element(By.CSS_SELECTOR, "#contest-app > div > div > div > div > nav > ul > li.next-btn").click()
+            csvwriter.writerow([ranking, username, nationality])
+        try:
+            driver.find_element(By.CSS_SELECTOR, "#contest-app > div > div > div > div > nav > ul > li.next-btn").click()
+        except WebDriverException:
+            print('next is not clickable, assuming we are done.')
+            exit()
 
-        if EC.presence_of_element_located((By.CSS_SELECTOR, "#contest-app > div > div > div > div > nav > ul > li.next-btn.disabled")):
-            break
 
 # with requests.Session() as s:
 #     s.get(login_url)
